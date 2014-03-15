@@ -448,7 +448,7 @@ class DB {
      * @return array two element array: (1) where clause SQL; (2) associative array of values to include as parameters
      * @throws Exception if the where clause array is malformed
      */
-    public static function where_to_str($where, $param_count = 0) {
+    private static function where_to_str($where, $param_count = 0) {
         if (!is_array($where)) {
             if (is_int($where) || (is_string($where) && preg_match('/^-?[0-9]+$/', $where))) {
                 $where = ['id', $where];
