@@ -134,7 +134,7 @@ class DB {
         $dsn .= ';port='.(empty($cfg['port']) ? 3306 : $cfg['port']);
         if (!empty($cfg['db'])) $dsn .= ';dbname='.$cfg['db'];
 
-        $this->pdo = new PDO($dsn, $cfg['user'], empty($cfg['pass']) '' : $cfg['pass'], static::$conn_opts);
+        $this->pdo = new PDO($dsn, $cfg['user'], empty($cfg['pass']) ? '' : $cfg['pass'], static::$conn_opts);
 
         $now = new DateTime();
         $mins = $now->getOffset() / 60;
@@ -250,10 +250,6 @@ class DB {
     public function select($table, $where = [], $order = null, $limit = 0, $offset = 0) {
         $sql = 'SELECT * FROM '.static::safe_name($table);
 
-        if (is_int($where) || (is_string($where) && preg_match('/^[0-9]+$/', $where))) {
-            $where = ['id', $where];
-        }
-
         list($where_sql, $where_values) = static::where_to_str($where);
         $sql .= ' WHERE '.$where_sql;
 
@@ -354,10 +350,6 @@ class DB {
 
         if ($first) return false;
 
-        if (is_int($where) || (is_string($where) && preg_match('/^[0-9]+$/', $where))) {
-            $where = ['id', $where];
-        }
-
         list($where_sql, $where_values) = static::where_to_str($where);
         $sql .= ' WHERE '.$where_sql;
         $values = array_merge($values, $where_values);
@@ -376,10 +368,6 @@ class DB {
      */
     public function delete($table, $where = [], $limit = 0) {
         $sql = 'DELETE FROM '.static::safe_name($table);
-
-        if (is_int($where) || (is_string($where) && preg_match('/^[0-9]+$/', $where))) {
-            $where = ['id', $where];
-        }
 
         list($where_sql, $where_values) = static::where_to_str($where);
         $sql .= ' WHERE '.$where_sql;
@@ -443,11 +431,13 @@ class DB {
      *            There are two shortcuts for which an operator is not necessary: = and IN
      *            to use the shortcuts, use the following format:
      *            [ '<name of column>', <value for =, or array of values for IN> ]
-     *            operators are not case sensitive
+     *            There is one more shortcut which allows for only an integer ID to be passed in as an integer or string,
+     *            which is equivalent to using [ 'id', <ID> ] or [ 'id', '=', <ID> ]
+     *            Operators are not case sensitive and will be converted to uppercase.
      *
      * Examples:
      * "x = 1 AND y < 10" => [ 'AND', [ 'x', '=', 1 ], [ 'y', '<', '10' ] ]
-     * "x BETWEEN 1 AND 9 OR y = 0" => [ 'OR', [ 'x', 'BETWEEN', 1, 9 ], [ 'y' => 0 ] ]
+     * "x BETWEEN 1 AND 9 OR y = 0" => [ 'OR', [ 'x', 'BETWEEN', 1, 9 ], [ 'y', '=', 0 ] ]
      * "x IN (1, 2, 3) OR y NOT IN (4, 5, 6)" => [ 'OR', [ 'x', 'IN', [1, 2, 3] ], [ 'y', 'NOT IN', 4, 5, 6 ] ]
      * "x = 1" => [ 'x', 1 ] (using shortcut notation for =)
      * "x IN (1, 2, 3)" => [ 'x', [ 1, 2, 3 ] ] (using shortcut notation for IN)
@@ -458,17 +448,22 @@ class DB {
      * @return array two element array: (1) where clause SQL; (2) associative array of values to include as parameters
      * @throws Exception if the where clause array is malformed
      */
-    private static function where_to_str($where, $param_count = 0) {
-        if (!is_array($where)) return [$where, []];
-        if (empty($where)) return ['1', []];
-
-        if (is_string($where[0])) {
-            $group_op = strtoupper($where[0]);
-            $is_group = $group_op === 'AND' || $group_op === 'OR';
-        } else {
-            $group_op = '';
-            $is_group = false;
+    public static function where_to_str($where, $param_count = 0) {
+        if (!is_array($where)) {
+            if (is_int($where) || (is_string($where) && preg_match('/^-?[0-9]+$/', $where))) {
+                $where = ['id', $where];
+            } else {
+                return [ strval($where), [] ];
+            }
         }
+        if (empty($where)) return [ '1', [] ];
+
+        if (!is_string($where[0])) {
+            throw new Exception('Invalid where clause! First element of where clause must be AND/OR or column name');
+        }
+
+        $group_op = strtoupper($where[0]);
+        $is_group = $group_op === 'AND' || $group_op === 'OR';
 
         $values = [];
         if ($is_group) {
@@ -526,6 +521,8 @@ class DB {
                 case '>':
                 case 'LIKE':
                 case 'NOT LIKE':
+                case 'RLIKE':
+                case 'NOT RLIKE':
                     $where_str .= ' :_where_param_'.$param_count;
                     $values['_where_param_'.$param_count] = $where[2];
                     break;
@@ -562,6 +559,6 @@ class DB {
             }
         }
 
-        return [$where_str, $values];
+        return [ $where_str, $values ];
     }
 }
