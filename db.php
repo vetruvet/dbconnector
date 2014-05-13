@@ -127,7 +127,7 @@ class DB {
     protected function connect() {
         if ($this->pdo !== null) return;
 
-        $cfg = static::$config[$conn_name];
+        $cfg = static::$config[$this->conn_name];
 
         $dsn = 'mysql:';
         $dsn .= 'host='.(empty($cfg['host']) ? 'localhost' : $cfg['host']);
