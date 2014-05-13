@@ -306,8 +306,7 @@ class DB {
 
             if ($dup_update) {
                 if (!$first) $updates .= ', ';
-                $updates .= '`'.$key_safe.'` = :_dup_val_'.$key_safe;
-                $insert_values['_dup_val_'.$key_safe] = $value;
+                $updates .= '`'.$key_safe.'` = VALUES(`'.$key_safe.'`)';
             }
 
             $first = false;
