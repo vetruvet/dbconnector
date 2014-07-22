@@ -60,8 +60,8 @@ class DB {
         if ($conn_name === null) {
             $conn_name = 'default';
         } else if (is_array($conn_name)) {
-            $conn_name = 'default';
             $config = $conn_name;
+            $conn_name = 'default';
         } else {
             $conn_name = strval($conn_name);
         }
