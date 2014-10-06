@@ -514,6 +514,9 @@ class DB {
 
                 switch ($op) {
                 case '=':
+                case '!=':
+                case '<>':
+                case '<=>':
                 case '<=':
                 case '>=':
                 case '<':
